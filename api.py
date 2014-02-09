@@ -62,10 +62,9 @@ def challengeInfo(token):
   else:
     pattern = row[0].split('\t')
     patterntime = pattern[::2]
-    patternkeys = pattern[1::2]
+    patternkeys = [int(i)-1 for i in pattern[1::2]]
 
-    
-    return jsonify(
+    response = jsonify(
     patterntime=patterntime,
     patternkeys=patternkeys,
     showLetters=row[1],
@@ -74,7 +73,11 @@ def challengeInfo(token):
     numkeys=row[4],
     keys=row[5].split(' '),
     bubbleColor=row[6].split(' '),
-  )
+    )
+
+    response.headers['Access-Control-Allow-Origin'] = "*" 
+
+    return response
 
 if __name__ == '__main__':
   app.run()
