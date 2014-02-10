@@ -1,37 +1,15 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+from crossdomain import crossdomain
+from datetime import datetime
+
 import MySQLdb as db
 
 app = Flask(__name__)
+app.debug = True
 
-@app.route('/')
-def hello_world():
-  return 'Hello World!'
-
-@app.route('/test')
-def json():
-  return jsonify(
-    username='Hello',
-    email='Coucou',
-    id='myid'
-  )
-
-@app.route('/test2')
-def login():
-  conn = db.connect(
-    host = "mysql-user.stanford.edu",
-    user = "gsislhero",
-    passwd = "eepulood",
-    db = "g_sisl_hero")
-  cursor = conn.cursor()
-  cursor.execute("SELECT VERSION()")
-  row = cursor.fetchone()
-  cursor.close()
-  conn.close()
-
-  return "server version:" + str(row[0])
-
-@app.route('/user/<token>/challenge')
-def challengeInfo(token):
+@app.route('/user/<token>/challenge', methods=['GET', 'OPTIONS'])
+@crossdomain(origin='*', methods=['GET', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
+def sendChallenge(token):
   conn = db.connect(
     host = "mysql-user.stanford.edu",
     user = "gsislhero",
@@ -39,18 +17,26 @@ def challengeInfo(token):
     db = "g_sisl_hero")
   cursor = conn.cursor()
   cursor.execute("""
-  SELECT 
-   AP.SequencePattern,
-   AP.ShowLetters,
-   AP.LetterColor,
-   AP.LetterSize,
-   AP.NumKeys,
-   AP.Keys,
-   AP.BubbleColor
-  FROM        g_sisl_hero.hero_AuthParam AP
-  INNER JOIN  g_sisl_hero.hero_AuthUser AU
-  ON          (AP.SequenceID = AU.SequenceID)
-  WHERE       AU.Token = %s
+  SELECT
+   HCD.SequencePattern,
+   HCD.ShowLetters,
+   HCD.LetterColor,
+   HCD.LetterSize,
+   HCD.NumKeys,
+   HCD.Keys,
+   HCD.BubbleColor,
+   HCD.ConfigDataID
+  FROM        g_sisl_hero.Hero_User HU
+  INNER JOIN  g_sisl_hero.Hero_Config HC
+  ON          (
+                HC.ConfigID = HU.ConfigID AND 
+                HC.ConfigDataNumber = HU.ConfigDataNumber
+              )
+  INNER JOIN  g_sisl_hero.Hero_ConfigData HCD
+  ON          (
+                HCD.ConfigDataID = HC.ConfigDataID
+              )
+  WHERE       HU.Token = %s
   """, [token])
   row = cursor.fetchone()
   cursor.close()
@@ -64,20 +50,91 @@ def challengeInfo(token):
     patterntime = pattern[::2]
     patternkeys = [int(i)-1 for i in pattern[1::2]]
 
-    response = jsonify(
-    patterntime=patterntime,
-    patternkeys=patternkeys,
-    showLetters=row[1],
-    letterColor=row[2],
-    letterSize=row[3],
-    numkeys=row[4],
-    keys=row[5].split(' '),
-    bubbleColor=row[6].split(' '),
+    return jsonify(
+      patterntime=patterntime,
+      patternkeys=patternkeys,
+      showLetters=row[1],
+      letterColor=row[2],
+      letterSize=row[3],
+      numkeys=row[4],
+      keys=row[5].split(' '),
+      bubbleColor=row[6].split(' '),
+      expNumber=row[7]
     )
 
-    response.headers['Access-Control-Allow-Origin'] = "*" 
+@app.route('/user/<token>/response/<int:expnumber>', methods=['POST', 'OPTIONS'])
+@crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
+def getResponse(token, expnumber):
+  expNumber = request.json['expNumber']
+  batchId = request.json['batchId']
+  responses = request.json['responses']
+  end = request.json['end']
 
-    return response
+  # Update experice number if all sequence has been played
+  if end:
+    pass
+    data = int(expNumber) + 1
+    conn = db.connect(
+      host = "mysql-user.stanford.edu",
+      user = "gsislhero",
+      passwd = "eepulood",
+      db = "g_sisl_hero")
+    cursor = conn.cursor()
+    cursor.execute("""
+    UPDATE g_sisl_hero.Hero_User SET ConfigDataNumber=%s
+    """, [data])
+    cursor.close()
+    conn.close()
 
+  # Store responses sent
+  if len(responses):
+    ft = '%Y-%m-%d %H:%M:%S.%f'
+
+    data = [
+      (
+        token, 
+        expNumber, 
+        datetime.fromtimestamp(int(x['responseKeyDate'])/1000).strftime(ft),
+        batchId,
+        datetime.now().strftime(ft),
+        x['key'],
+        1 if x['hit'] else 0,
+        x['offset'],
+        x['closestKey'],
+        x['queuePosition'],
+      )
+      for x in responses
+    ]
+
+    print len(data)
+
+    conn = db.connect(
+      host = "mysql-user.stanford.edu",
+      user = "gsislhero",
+      passwd = "eepulood",
+      db = "g_sisl_hero")
+    cursor = conn.cursor()
+    cursor.executemany("""
+    INSERT INTO g_sisl_hero.Hero_ResponseKey (
+      Token,
+      ExpNumber,
+      ResponseKeyDatetime,
+      BatchID,
+      BatchDatetime,
+      KeyID,
+      HitFlag,
+      Offset,
+      ClosestKeyID,
+      QueuePosition
+    )
+    VALUES
+      (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, data)
+    cursor.close()
+    conn.close()
+
+  return 'OK'
+
+ 
 if __name__ == '__main__':
   app.run()
