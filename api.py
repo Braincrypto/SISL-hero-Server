@@ -96,19 +96,18 @@ def storeResponse(token):
 
   # Update experice number if all sequence has been played
   if end:
-    pass
-    #newNumber = int(stepNumber) + 1
-    #conn = db.connect(
-    #  host = "mysql-user.stanford.edu",
-    #  user = "gsislhero",
-    #  passwd = "eepulood",
-    #  db = "g_sisl_hero")
-    #cursor = conn.cursor()
-    #cursor.execute("""
-    #UPDATE g_sisl_hero.Hero_User SET StepNumber=%s, BestScore=%s WHERE Token=%s
-    #""", [newNumber, token, request.json['score']])
-    #cursor.close()
-    #conn.close()
+    newNumber = int(stepNumber) + 1
+    conn = db.connect(
+      host = "mysql-user.stanford.edu",
+      user = "gsislhero",
+      passwd = "eepulood",
+      db = "g_sisl_hero")
+    cursor = conn.cursor()
+    cursor.execute("""
+    UPDATE g_sisl_hero.Hero_User SET StepNumber=%s, BestScore=%s WHERE Token=%s
+    """, [newNumber, token, request.json['score']])
+    cursor.close()
+    conn.close()
 
   # Store responses sent
   if len(responses):
