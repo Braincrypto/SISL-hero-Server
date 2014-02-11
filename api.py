@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, request
 from crossdomain import crossdomain
 import time
+import logging
+logging.basicConfig(filename='sisl-server.log',level=logging.DEBUG)
 
 import MySQLdb as db
 
@@ -10,6 +12,7 @@ app.debug = True
 @app.route('/user/<token>/challenge', methods=['GET', 'OPTIONS'])
 @crossdomain(origin='*', methods=['GET', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
 def sendChallenge(token):
+  logging.debug(token + ' is asking for a config')
   conn = db.connect(
     host = "mysql-user.stanford.edu",
     user = "gsislhero",
@@ -89,79 +92,81 @@ def sendChallenge(token):
 @app.route('/user/<token>/response', methods=['POST', 'OPTIONS'])
 @crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
 def storeResponse(token):
-  stepNumber = int(request.json['stepNumber'])
-  batchId = request.json['batchId']
-  responses = request.json['responses']
-  end = False#request.json['end']
+  try:
+    stepNumber = int(request.json['stepNumber'])
+    batchId = request.json['batchId']
+    responses = request.json['responses']
+    end = False#request.json['end']
 
-  # Update experice number if all sequence has been played
-  if end:
-    newNumber = stepNumber + 1
-    conn = db.connect(
-      host = "mysql-user.stanford.edu",
-      user = "gsislhero",
-      passwd = "eepulood",
-      db = "g_sisl_hero")
-    cursor = conn.cursor()
-    cursor.execute("""
-    UPDATE g_sisl_hero.Hero_User SET StepNumber=%s, BestScore=%s WHERE Token=%s
-    """, [newNumber, token, request.json['score']])
-    cursor.close()
-    conn.close()
+    # Update experice number if all sequence has been played
+    if end:
+      newNumber = stepNumber + 1
+      conn = db.connect(
+        host = "mysql-user.stanford.edu",
+        user = "gsislhero",
+        passwd = "eepulood",
+        db = "g_sisl_hero")
+      cursor = conn.cursor()
+      cursor.execute("""
+      UPDATE g_sisl_hero.Hero_User SET StepNumber=%s, BestScore=%s WHERE Token=%s
+      """, [newNumber, token, request.json['score']])
+      cursor.close()
+      conn.close()
 
-  # Store responses sent
-  if len(responses):
-    data = [
-      (
-        x['eventType'],
-        token,
-        stepNumber, 
-        x['eventTimestamp'],
-        batchId,
-        int(time.time() * 1000),
-        x['key'],
-        1 if x['hit'] else 0,
-        x['offset'],
-        x['closestKey'],
-        x['queuePosition'],
-        x['speedFactor'],
-        x['speedChange'],
+    # Store responses sent
+    if len(responses):
+      data = [
+        (
+          x['eventType'],
+          token,
+          stepNumber, 
+          x['eventTimestamp'],
+          batchId,
+          int(time.time() * 1000),
+          x['key'],
+          1 if x['hit'] else 0,
+          x['offset'],
+          x['closestKey'],
+          x['queuePosition'],
+          x['speedFactor'],
+          x['speedChange'],
+        )
+        for x in responses
+      ]
+
+      print len(data)
+
+      conn = db.connect(
+        host = "mysql-user.stanford.edu",
+        user = "gsislhero",
+        passwd = "eepulood",
+        db = "g_sisl_hero")
+      cursor = conn.cursor()
+      cursor.executemany("""
+      INSERT INTO g_sisl_hero.Hero_ResponseEvent (
+        EventType,
+        Token,
+        StepNumber,
+        EventTimestamp,
+        BatchID,
+        BatchTimestamp,
+        KeyID,
+        HitFlag,
+        Offset,
+        ClosestKeyID,
+        QueuePosition,
+        SpeedFactor,
+        SpeedChange
       )
-      for x in responses
-    ]
+      VALUES
+        (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+      """, data)
+      cursor.close()
+      conn.close()
 
-    print len(data)
-
-    conn = db.connect(
-      host = "mysql-user.stanford.edu",
-      user = "gsislhero",
-      passwd = "eepulood",
-      db = "g_sisl_hero")
-    cursor = conn.cursor()
-    cursor.executemany("""
-    INSERT INTO g_sisl_hero.Hero_ResponseEvent (
-      EventType,
-      Token,
-      StepNumber,
-      EventTimestamp,
-      BatchID,
-      BatchTimestamp,
-      KeyID,
-      HitFlag,
-      Offset,
-      ClosestKeyID,
-      QueuePosition,
-      SpeedFactor,
-      SpeedChange
-    )
-    VALUES
-      (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """, data)
-    cursor.close()
-    conn.close()
-
-  return 'OK'
-
+    return 'OK'
+  except Exception as e:
+    logging.error(e)
  
 if __name__ == '__main__':
   app.run()
