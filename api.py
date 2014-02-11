@@ -89,14 +89,14 @@ def sendChallenge(token):
 @app.route('/user/<token>/response', methods=['POST', 'OPTIONS'])
 @crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
 def storeResponse(token):
-  stepNumber = request.json['stepNumber']
+  stepNumber = int(request.json['stepNumber'])
   batchId = request.json['batchId']
   responses = request.json['responses']
   end = False#request.json['end']
 
   # Update experice number if all sequence has been played
   if end:
-    newNumber = int(stepNumber) + 1
+    newNumber = stepNumber + 1
     conn = db.connect(
       host = "mysql-user.stanford.edu",
       user = "gsislhero",
