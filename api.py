@@ -92,7 +92,7 @@ def storeResponse(token, expnumber):
   expNumber = request.json['expNumber']
   batchId = request.json['batchId']
   responses = request.json['responses']
-  end = request.json['end']
+  end = False#request.json['end']
 
   # Update experice number if all sequence has been played
   if end:
