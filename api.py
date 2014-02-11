@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 from crossdomain import crossdomain
-from datetime import datetime
+import time
 
 import MySQLdb as db
 
@@ -18,6 +18,7 @@ def sendChallenge(token):
   cursor = conn.cursor()
   cursor.execute("""
   SELECT
+   HU.ConfigDataNumber,
    HCD.SequencePattern,
    HCD.ShowLetters,
    HCD.LetterColor,
@@ -25,7 +26,18 @@ def sendChallenge(token):
    HCD.NumKeys,
    HCD.Keys,
    HCD.BubbleColor,
-   HCD.ConfigDataID
+   HCD.BatchSize,
+   HCD.AdaptativeSpeed,
+   HCD.ComboWindow,
+   HCD.SpeedUpTrigger,
+   HCD.SpeedUpInc,
+   HCD.SlowDownTrigger,
+   HCD.LowestSpeedFactor,
+   HCD.SlowDownDec,
+   HCD.MiddlePadding,
+   HCD.BaseTimeToShow,
+   HCD.Interval,
+   HCD.AccuracyRange
   FROM        g_sisl_hero.Hero_User HU
   INNER JOIN  g_sisl_hero.Hero_Config HC
   ON          (
@@ -46,25 +58,37 @@ def sendChallenge(token):
     return "Nothing"
 
   else:
-    pattern = row[0].split('\t')
+    pattern = row[1].split('\t')
     patterntime = pattern[::2]
     patternkeys = [int(i)-1 for i in pattern[1::2]]
 
     return jsonify(
+      expNumber=row[0],
       patterntime=patterntime,
       patternkeys=patternkeys,
-      showLetters=row[1],
-      letterColor=row[2],
-      letterSize=row[3],
-      numkeys=row[4],
-      keys=row[5].split(' '),
-      bubbleColor=row[6].split(' '),
-      expNumber=row[7]
-    )
+      showLetters=row[2],
+      letterColor=row[3],
+      letterSize=row[4],
+      numkeys=row[5],
+      keys=row[6].split(' '),
+      bubbleColor=row[7].split(' '),
+      batchSize=row[8],
+      adaptativeSpeed=row[9],
+      comboWindow=row[10],
+      speedUpTrigger=row[11],
+      speedUpInc=row[12],
+      slowDownTrigger=row[13],
+      lowestSpeedFactor=row[14],
+      slowDownDec=row[15],
+      middlePadding=row[16],
+      baseTimeToShow=row[17],
+      interval=row[18],
+      accuracyRange=row[19],
+     )
 
 @app.route('/user/<token>/response/<int:expnumber>', methods=['POST', 'OPTIONS'])
 @crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
-def getResponse(token, expnumber):
+def storeResponse(token, expnumber):
   expNumber = request.json['expNumber']
   batchId = request.json['batchId']
   responses = request.json['responses']
@@ -72,8 +96,7 @@ def getResponse(token, expnumber):
 
   # Update experice number if all sequence has been played
   if end:
-    pass
-    data = int(expNumber) + 1
+    newNumber = int(expNumber) + 1
     conn = db.connect(
       host = "mysql-user.stanford.edu",
       user = "gsislhero",
@@ -81,27 +104,28 @@ def getResponse(token, expnumber):
       db = "g_sisl_hero")
     cursor = conn.cursor()
     cursor.execute("""
-    UPDATE g_sisl_hero.Hero_User SET ConfigDataNumber=%s
-    """, [data])
+    UPDATE g_sisl_hero.Hero_User SET ConfigDataNumber=%s WHERE Token=%s
+    """, [newNumber, token])
     cursor.close()
     conn.close()
 
   # Store responses sent
   if len(responses):
-    ft = '%Y-%m-%d %H:%M:%S.%f'
-
     data = [
       (
-        token, 
+        x['eventType'],
+        token,
         expNumber, 
-        datetime.fromtimestamp(int(x['responseKeyDate'])/1000).strftime(ft),
+        x['eventTimestamp'],
         batchId,
-        datetime.now().strftime(ft),
+        int(time.time() * 1000),
         x['key'],
         1 if x['hit'] else 0,
         x['offset'],
         x['closestKey'],
         x['queuePosition'],
+        x['speedFactor'],
+        x['speedChange'],
       )
       for x in responses
     ]
@@ -115,20 +139,23 @@ def getResponse(token, expnumber):
       db = "g_sisl_hero")
     cursor = conn.cursor()
     cursor.executemany("""
-    INSERT INTO g_sisl_hero.Hero_ResponseKey (
+    INSERT INTO g_sisl_hero.Hero_ResponseEvent (
+      EventType,
       Token,
       ExpNumber,
-      ResponseKeyDatetime,
+      EventTimestamp,
       BatchID,
-      BatchDatetime,
+      BatchTimestamp,
       KeyID,
       HitFlag,
       Offset,
       ClosestKeyID,
-      QueuePosition
+      QueuePosition,
+      SpeedFactor,
+      SpeedChange
     )
     VALUES
-      (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+      (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, data)
     cursor.close()
     conn.close()
