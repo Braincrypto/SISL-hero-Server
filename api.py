@@ -18,7 +18,7 @@ def sendChallenge(token):
   cursor = conn.cursor()
   cursor.execute("""
   SELECT
-   HU.ConfigDataNumber,
+   HU.StepNumber,
    HCD.SequencePattern,
    HCD.ShowLetters,
    HCD.LetterColor,
@@ -42,7 +42,7 @@ def sendChallenge(token):
   INNER JOIN  g_sisl_hero.Hero_Config HC
   ON          (
                 HC.ConfigID = HU.ConfigID AND 
-                HC.ConfigDataNumber = HU.ConfigDataNumber
+                HC.StepNumber = HU.StepNumber
               )
   INNER JOIN  g_sisl_hero.Hero_ConfigData HCD
   ON          (
@@ -58,12 +58,12 @@ def sendChallenge(token):
     return "Nothing"
 
   else:
-    pattern = row[1].split('\t')
+    pattern = row[1].strip().split('\t')
     patterntime = [float(i) for i in pattern[::2]]
     patternkeys = [int(i)-1 for i in pattern[1::2]]
 
     return jsonify(
-      expNumber=row[0],
+      stepNumber=row[0],
       patterntime=patterntime,
       patternkeys=patternkeys,
       showLetters=row[2],
@@ -86,28 +86,29 @@ def sendChallenge(token):
       accuracyRange=row[19],
      )
 
-@app.route('/user/<token>/response/<int:expnumber>', methods=['POST', 'OPTIONS'])
+@app.route('/user/<token>/response', methods=['POST', 'OPTIONS'])
 @crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
-def storeResponse(token, expnumber):
-  expNumber = request.json['expNumber']
+def storeResponse(token):
+  stepNumber = request.json['stepNumber']
   batchId = request.json['batchId']
   responses = request.json['responses']
   end = False#request.json['end']
 
   # Update experice number if all sequence has been played
   if end:
-    newNumber = int(expNumber) + 1
-    conn = db.connect(
-      host = "mysql-user.stanford.edu",
-      user = "gsislhero",
-      passwd = "eepulood",
-      db = "g_sisl_hero")
-    cursor = conn.cursor()
-    cursor.execute("""
-    UPDATE g_sisl_hero.Hero_User SET ConfigDataNumber=%s WHERE Token=%s
-    """, [newNumber, token])
-    cursor.close()
-    conn.close()
+    pass
+    #newNumber = int(stepNumber) + 1
+    #conn = db.connect(
+    #  host = "mysql-user.stanford.edu",
+    #  user = "gsislhero",
+    #  passwd = "eepulood",
+    #  db = "g_sisl_hero")
+    #cursor = conn.cursor()
+    #cursor.execute("""
+    #UPDATE g_sisl_hero.Hero_User SET StepNumber=%s, BestScore=%s WHERE Token=%s
+    #""", [newNumber, token, request.json['score']])
+    #cursor.close()
+    #conn.close()
 
   # Store responses sent
   if len(responses):
@@ -115,7 +116,7 @@ def storeResponse(token, expnumber):
       (
         x['eventType'],
         token,
-        expNumber, 
+        stepNumber, 
         x['eventTimestamp'],
         batchId,
         int(time.time() * 1000),
@@ -142,7 +143,7 @@ def storeResponse(token, expnumber):
     INSERT INTO g_sisl_hero.Hero_ResponseEvent (
       EventType,
       Token,
-      ExpNumber,
+      StepNumber,
       EventTimestamp,
       BatchID,
       BatchTimestamp,
