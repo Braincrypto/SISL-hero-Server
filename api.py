@@ -59,7 +59,7 @@ def sendChallenge(token):
 
   else:
     pattern = row[1].split('\t')
-    patterntime = pattern[::2]
+    patterntime = [float(i) for i in pattern[::2]]
     patternkeys = [int(i)-1 for i in pattern[1::2]]
 
     return jsonify(
