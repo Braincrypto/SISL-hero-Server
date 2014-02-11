@@ -12,7 +12,7 @@ app.debug = True
 @app.route('/user/<token>/challenge', methods=['GET', 'OPTIONS'])
 @crossdomain(origin='*', methods=['GET', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
 def sendChallenge(token):
-  logging.debug(token + ' is asking for a config')
+  logging.debug('Token: ' + token + ' - Asking for a config')
   conn = db.connect(
     host = "mysql-user.stanford.edu",
     user = "gsislhero",
@@ -134,7 +134,7 @@ def storeResponse(token):
         for x in responses
       ]
 
-      print len(data)
+      logging.debug('Token: ' + token + ' - Storing ' + str(len(data)))
 
       conn = db.connect(
         host = "mysql-user.stanford.edu",
