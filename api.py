@@ -44,7 +44,7 @@ def sendChallenge(token):
    HCD.MiddlePadding,
    HCD.BaseTimeToShow,
    HCD.Interval,
-   HCD.AccuracyRange
+   HCD.BaseAccuracyRange
   FROM        g_sisl_hero.Hero_User HU
   INNER JOIN  g_sisl_hero.Hero_Config HC
   ON          (
@@ -94,7 +94,7 @@ def sendChallenge(token):
       middlePadding=row[20],
       baseTimeToShow=row[21],
       interval=row[22],
-      accuracyRange=row[23],
+      baseAccuracyRange=row[23],
      )
 
 @app.route('/user/<token>/response', methods=['POST', 'OPTIONS'])
