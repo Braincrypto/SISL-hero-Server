@@ -1,4 +1,14 @@
+# Swap files
+*.swp
+
+# Virtual env
+env/
+
+# Executables
 *.py[cod]
+
+# Logs
+*.log
 
 # C extensions
 *.so
