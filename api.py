@@ -2,22 +2,27 @@ from flask import Flask, jsonify, request
 from crossdomain import crossdomain
 import time
 import logging
+import ConfigParser
 logging.basicConfig(filename='sisl-server.log',level=logging.DEBUG)
 
 import MySQLdb as db
 
 app = Flask(__name__)
-app.debug = True
+app.debug = False
+
+config = ConfigParser.ConfigParser()
+config.read("app.conf")
 
 @app.route('/user/<token>/challenge', methods=['GET', 'OPTIONS'])
 @crossdomain(origin='*', methods=['GET', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
 def sendChallenge(token):
   logging.debug('Token: ' + token + ' - Asking for a config')
   conn = db.connect(
-    host = "mysql-user.stanford.edu",
-    user = "gsislhero",
-    passwd = "eepulood",
-    db = "g_sisl_hero")
+    host = config.get("DB", "host"),
+    user = config.get("DB", "user"),
+    passwd = config.get("DB", "passwd"),
+    db = config.get("DB", "db")
+  )
   cursor = conn.cursor()
   cursor.execute("""
   SELECT
