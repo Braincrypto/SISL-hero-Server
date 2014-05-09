@@ -8,7 +8,7 @@ env/
 *.py[cod]
 
 # Credentials
-app.conf
+*.conf
 
 # Logs
 *.log
