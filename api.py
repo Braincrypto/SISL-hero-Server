@@ -13,7 +13,7 @@ app.debug = False
 config = ConfigParser.ConfigParser()
 config.read("app.conf")
 
-@app.route('/api/user/<token>/challenge', methods=['GET', 'OPTIONS'])
+@app.route('/user/<token>/challenge', methods=['GET', 'OPTIONS'])
 @crossdomain(origin='*', methods=['GET', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
 def sendChallenge(token):
   logging.debug('Token: ' + token + ' - Asking for a config')
@@ -102,7 +102,7 @@ def sendChallenge(token):
       baseAccuracyRange=row[23],
      )
 
-@app.route('/api/user/<token>/response', methods=['POST', 'OPTIONS'])
+@app.route('/user/<token>/response', methods=['POST', 'OPTIONS'])
 @crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
 def storeResponse(token):
   try:
