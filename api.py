@@ -14,7 +14,7 @@ config = ConfigParser.ConfigParser()
 config.read("app.conf")
 
 @app.route('/user/<token>/challenge', methods=['GET', 'OPTIONS'])
-@crossdomain(origin='*', methods=['GET', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
+@crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
 def sendChallenge(token):
   logging.debug('Token: ' + token + ' - Asking for a config')
   conn = db.connect(
@@ -67,14 +67,14 @@ def sendChallenge(token):
   conn.close()
 
   if row is None:
-    return "Nothing"
+    response = "Nothing"
 
   else:
     pattern = row[1].strip().split('\t')
     patterntime = [float(i) for i in pattern[::2]]
     patternkeys = [int(i)-1 for i in pattern[1::2]]
 
-    return jsonify(
+    response = jsonify(
       stepNumber=row[0],
       patterntime=patterntime,
       patternkeys=patternkeys,
@@ -101,6 +101,8 @@ def sendChallenge(token):
       interval=row[22],
       baseAccuracyRange=row[23],
      )
+  
+  return response
 
 @app.route('/user/<token>/response', methods=['POST', 'OPTIONS'])
 @crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
@@ -115,10 +117,11 @@ def storeResponse(token):
     if end:
       newNumber = stepNumber + 1
       conn = db.connect(
-        host = "mysql-user.stanford.edu",
-        user = "gsislhero",
-        passwd = "eepulood",
-        db = "g_sisl_hero")
+        host = config.get("DB", "host"),
+        user = config.get("DB", "user"),
+        passwd = config.get("DB", "passwd"),
+        db = config.get("DB", "db")
+      )
       cursor = conn.cursor()
       cursor.execute("""
       UPDATE g_sisl_hero.Hero_User SET StepNumber=%s, BestScore=%s WHERE Token=%s
@@ -130,50 +133,41 @@ def storeResponse(token):
     if len(responses):
       data = [
         (
-          x['eventType'],
           token,
-          stepNumber, 
+          stepNumber,
+          x['cueId'],
           x['eventTimestamp'],
-          batchId,
-          int(time.time() * 1000),
-          x['key'],
-          1 if x['hit'] else 0,
-          x['offset'],
-          x['closestKey'],
-          x['queuePosition'],
-          x['speedFactor'],
-          x['speedChange'],
+          x['eventType'],
+          x['eventValue'],
+          x['eventDist'],
+          x['eventSpeed']
         )
         for x in responses
       ]
 
       logging.debug('Token: ' + token + ' - Storing ' + str(len(data)))
-
       conn = db.connect(
-        host = "mysql-user.stanford.edu",
-        user = "gsislhero",
-        passwd = "eepulood",
-        db = "g_sisl_hero")
+        host = config.get("DB", "host"),
+        user = config.get("DB", "user"),
+        passwd = config.get("DB", "passwd"),
+        db = config.get("DB", "db")
+      )
       cursor = conn.cursor()
       cursor.executemany("""
-      INSERT INTO g_sisl_hero.Hero_ResponseEvent (
-        EventType,
-        Token,
-        StepNumber,
-        EventTimestamp,
-        BatchID,
-        BatchTimestamp,
-        KeyID,
-        HitFlag,
-        Offset,
-        ClosestKeyID,
-        QueuePosition,
-        SpeedFactor,
-        SpeedChange
+      INSERT INTO g_sisl_hero.output_response (
+        user_token,
+        scenario_id,
+        cue_id,
+        event_time_ms,
+        response_type,
+        response_value,
+        response_dist_norm,
+        response_speed
       )
       VALUES
-        (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        (%s, %s, %s, %s, %s, %s, %s, %s blépharite)
       """, data)
+      conn.commit()
       cursor.close()
       conn.close()
 
