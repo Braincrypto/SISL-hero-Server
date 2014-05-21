@@ -23,84 +23,124 @@ def sendChallenge(token):
     passwd = config.get("DB", "passwd"),
     db = config.get("DB", "db")
   )
+
+  # First get the list of cues
   cursor = conn.cursor()
   cursor.execute("""
   SELECT
-   HU.StepNumber,
-   HCD.SequencePattern,
-   HCD.ShowLetters,
-   HCD.LetterColor,
-   HCD.LetterSize,
-   HCD.NumKeys,
-   HCD.Keys,
-   HCD.BubbleColor,
-   HCD.CircleSize,
-   HCD.GoodColor,
-   HCD.BadColor,
-   HCD.RatioBubble,
-   HCD.BatchSize,
-   HCD.AdaptativeSpeed,
-   HCD.ComboWindow,
-   HCD.SpeedUpTrigger,
-   HCD.SpeedUpInc,
-   HCD.SlowDownTrigger,
-   HCD.LowestSpeedFactor,
-   HCD.SlowDownDec,
-   HCD.MiddlePadding,
-   HCD.BaseTimeToShow,
-   HCD.Interval,
-   HCD.BaseAccuracyRange
-  FROM        g_sisl_hero.Hero_User HU
-  INNER JOIN  g_sisl_hero.Hero_Config HC
+    TLE.event_id, 
+    TLE.cue_id, 
+    TLE.event_type,
+    TLE.event_value,
+    TLE.dist_norm,
+    TLE.duration_time_ms,
+    TLE.event_category,
+    TLE.time_to_target_ms
+  FROM        user U
+  INNER JOIN  scenario_list SL
   ON          (
-                HC.ConfigID = HU.ConfigID AND 
-                HC.StepNumber = HU.StepNumber
+                U.scenario_list_id = SL.scenario_list_id AND 
+                U.scenario_list_position = SL.scenario_list_position
               )
-  INNER JOIN  g_sisl_hero.Hero_ConfigData HCD
+  INNER JOIN  scenario S
   ON          (
-                HCD.ConfigDataID = HC.ConfigDataID
+                S.scenario_id = SL.scenario_id
               )
-  WHERE       HU.Token = %s
+  INNER JOIN  trial_list_event TLE
+  ON          (
+                TLE.trial_list_id = S.trial_list_id
+              )
+  WHERE       U.user_token = %s
+  ORDER BY    TLE.event_id
   """, [token])
+  
+  events = []
+  for row in cursor.fetchall():
+    events.append({
+      'eventId': row[0],
+      'cueId': row[1],
+      'type': row[2],
+      'value': int(row[3]) if row[2] == 'cue' else row[3],
+      'dist': row[4],
+      'duration': row[5],
+    })
+  cursor.close()
+
+  logging.debug('Token: ' + token + ' - First part done')
+
+  # then get the parameters
+  cursor = conn.cursor()
+  cursor.execute("""
+  SELECT
+    S.scenario_id,
+    P.middle_padding,
+    P.letter_show,
+    P.letter_color,
+    P.letter_size,
+    P.keys,
+    P.num_keys,
+    P.cue_colors,
+    P.cue_size,
+    P.pos_color,
+    P.neg_color,
+    P.ratio_bubble,
+    P.batch_size,
+    P.interval,
+    P.speed_lookback,
+    P.speed_fraction,
+    P.speed_up_threshold,
+    P.speed_down_threshold,
+    P.time_to_elapse,
+    P.target_offset,
+    P.target_buffer
+  FROM        user U
+  INNER JOIN  scenario_list SL
+  ON          (
+                U.scenario_list_id = SL.scenario_list_id AND 
+                U.scenario_list_position = SL.scenario_list_position
+              )
+  INNER JOIN  scenario S
+  ON          (
+                S.scenario_id = SL.scenario_id
+              )
+  INNER JOIN  parameter P
+  ON          (
+                P.parameter_id = S.parameter_id
+              )
+  WHERE       U.user_token = %s
+  """, [token])
+  
   row = cursor.fetchone()
   cursor.close()
   conn.close()
+  
+  logging.debug('Token: ' + token + ' - Second part done')
 
-  if row is None:
-    response = "Nothing"
-
-  else:
-    pattern = row[1].strip().split('\t')
-    patterntime = [float(i) for i in pattern[::2]]
-    patternkeys = [int(i)-1 for i in pattern[1::2]]
-
-    response = jsonify(
-      stepNumber=row[0],
-      patterntime=patterntime,
-      patternkeys=patternkeys,
-      showLetters=row[2],
-      letterColor=row[3],
-      letterSize=row[4],
-      numkeys=row[5],
-      keys=row[6].split(' '),
-      bubbleColor=row[7].split(' '),
-      circleSize=row[8],
-      GoodColor=row[9],
-      BadColor=row[10],
-      ratioBubble=row[11],
-      batchSize=row[12],
-      adaptativeSpeed=row[13],
-      comboWindow=row[14],
-      speedUpTrigger=row[15],
-      speedUpInc=row[16],
-      slowDownTrigger=row[17],
-      lowestSpeedFactor=row[18],
-      slowDownDec=row[19],
-      middlePadding=row[20],
-      baseTimeToShow=row[21],
-      interval=row[22],
-      baseAccuracyRange=row[23],
-     )
+  response = jsonify(
+    scenario=row[0],
+    middlePadding=row[1],
+    showLetters=row[2],
+    letterColor=row[3],
+    letterSize=row[4],
+    keys=row[5].split(' '),
+    numkeys=row[6],
+    bubbleColor=row[7].split(' '),
+    circleSize=row[8],
+    GoodColor=row[9],
+    BadColor=row[10],
+    ratioBubble=row[11],
+    batchSize=row[12],
+    adaptativeSpeed=True,
+    comboWindow=row[14],
+    speedRatio=row[15],
+    speedUpTrigger=row[16],
+    speedDownTrigger=row[17],
+    interval=row[13],
+    baseTimeToShow=row[18],
+    baseAccuracyOffset=row[19],
+    baseAccuracyRange=row[20],
+    events=events,
+  )
   
   return response
 
@@ -108,14 +148,14 @@ def sendChallenge(token):
 @crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
 def storeResponse(token):
   try:
-    stepNumber = int(request.json['stepNumber'])
+    scenario = int(request.json['scenario'])
     batchId = request.json['batchId']
     responses = request.json['responses']
     end = False#request.json['end']
 
     # Update experice number if all sequence has been played
     if end:
-      newNumber = stepNumber + 1
+      scenario = scenario + 1
       conn = db.connect(
         host = config.get("DB", "host"),
         user = config.get("DB", "user"),
@@ -124,8 +164,8 @@ def storeResponse(token):
       )
       cursor = conn.cursor()
       cursor.execute("""
-      UPDATE g_sisl_hero.Hero_User SET StepNumber=%s, BestScore=%s WHERE Token=%s
-      """, [newNumber, token, request.json['score']])
+      UPDATE user SET training_progress=%s WHERE Token=%s
+      """, [1, token])
       cursor.close()
       conn.close()
 
@@ -134,7 +174,8 @@ def storeResponse(token):
       data = [
         (
           token,
-          stepNumber,
+          scenario,
+          batchId,
           x['cueId'],
           x['eventTimestamp'],
           x['eventType'],
@@ -154,9 +195,10 @@ def storeResponse(token):
       )
       cursor = conn.cursor()
       cursor.executemany("""
-      INSERT INTO g_sisl_hero.output_response (
+      INSERT INTO output_response (
         user_token,
         scenario_id,
+        batch_id,
         cue_id,
         event_time_ms,
         response_type,
@@ -165,7 +207,7 @@ def storeResponse(token):
         response_speed
       )
       VALUES
-        (%s, %s, %s, %s, %s, %s, %s, %s blépharite)
+        (%s, %s, %s, %s, %s, %s, %s, %s, %s)
       """, data)
       conn.commit()
       cursor.close()
