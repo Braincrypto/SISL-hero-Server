@@ -66,6 +66,8 @@ def sendChallenge(token):
     })
   cursor.close()
 
+  events = sorted(events, key=lambda x: int(x['eventId']))
+
   logging.debug('Token: ' + token + ' - First part done')
 
   # then get the parameters
