@@ -139,8 +139,8 @@ def sendChallenge(token):
     speedDownTrigger=row[17],
     interval=row[13],
     baseTimeToShow=row[18],
-    baseAccuracyOffset=row[19],
-    baseAccuracyRange=row[20],
+    accuracyOffset=row[19],
+    accuracyRange=row[20],
     events=events,
   )
   
