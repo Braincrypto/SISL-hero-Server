@@ -1,6 +1,5 @@
 from flask import Flask, jsonify, request
 from crossdomain import crossdomain
-import time
 import logging
 import ConfigParser
 logging.basicConfig(filename='sisl-server.log',level=logging.DEBUG)
