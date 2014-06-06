@@ -13,7 +13,7 @@ config = ConfigParser.ConfigParser()
 config.read("app.conf")
 
 @app.route('/user/<token>/challenge', methods=['GET', 'OPTIONS'])
-@crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
+@crossdomain(origin='*', methods=['GET', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
 def sendChallenge(token):
   logging.debug('Token: ' + token + ' - Asking for a config')
   conn = db.connect(
@@ -188,8 +188,6 @@ def createToken(token):
   except Exception as e:
     logging.error(e)
  
-if __name__ == '__main__':
-  app.run()
 @app.route('/user/<token>/response', methods=['POST', 'OPTIONS'])
 @crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
 def storeResponse(token):
