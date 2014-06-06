@@ -145,6 +145,51 @@ def sendChallenge(token):
   
   return response
 
+@app.route('/user/<token>/create', methods=['POST', 'OPTIONS'])
+@crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
+def createToken(token):
+  try:
+    logging.debug('Creating Token: ' + token)
+    conn = db.connect(
+      host = config.get("DB", "host"),
+      user = config.get("DB", "user"),
+      passwd = config.get("DB", "passwd"),
+      db = config.get("DB", "db")
+    )
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO `g_sisl_hero`.`user`
+    (
+    `user_token`,
+    `firstname`,
+    `lastname`,
+    `overeighteen`,
+    `email`,
+    `scenario_list_id`,
+    `scenario_list_position`,
+    `training_progress`,
+    `authorization_progress`)
+    VALUES (
+    %s,
+    'Unknown',
+    'Unknown',
+    1,
+    'Unknown',
+    2,
+    1,
+    0,
+    0);
+    """, [token])
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return 'OK'
+  except Exception as e:
+    logging.error(e)
+ 
+if __name__ == '__main__':
+  app.run()
 @app.route('/user/<token>/response', methods=['POST', 'OPTIONS'])
 @crossdomain(origin='*', methods=['POST', 'OPTIONS'], headers=['X-Requested-With', 'Content-Type', 'Origin'])
 def storeResponse(token):
@@ -152,7 +197,7 @@ def storeResponse(token):
     scenario = int(request.json['scenario'])
     batchId = request.json['batchId']
     responses = request.json['responses']
-    end = False#request.json['end']
+    end = request.json['end']
 
     # Update experice number if all sequence has been played
     if end:
@@ -165,7 +210,7 @@ def storeResponse(token):
       )
       cursor = conn.cursor()
       cursor.execute("""
-      UPDATE user SET training_progress=%s WHERE Token=%s
+      UPDATE user SET training_progress=%d WHERE user_token=%s
       """, [1, token])
       cursor.close()
       conn.close()
