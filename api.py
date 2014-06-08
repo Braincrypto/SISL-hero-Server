@@ -208,8 +208,9 @@ def storeResponse(token):
       )
       cursor = conn.cursor()
       cursor.execute("""
-      UPDATE user SET training_progress=%d WHERE user_token=%s
-      """, [1, token])
+      UPDATE user SET training_progress=1 WHERE user_token=%s
+      """, [token])
+      conn.commit()
       cursor.close()
       conn.close()
 
