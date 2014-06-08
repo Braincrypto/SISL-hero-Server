@@ -208,7 +208,7 @@ def storeResponse(token):
       )
       cursor = conn.cursor()
       cursor.execute("""
-      UPDATE user SET training_progress=1 WHERE user_token=%s
+      UPDATE g_sisl_hero.user SET training_progress=1.00 WHERE user_token=%s
       """, [token])
       conn.commit()
       cursor.close()
