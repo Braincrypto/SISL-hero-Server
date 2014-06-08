@@ -175,7 +175,7 @@ def createToken(token):
     'Unknown',
     1,
     'Unknown',
-    2,
+    1,
     1,
     0,
     0);
