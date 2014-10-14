@@ -158,28 +158,28 @@ def createToken(token):
     )
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT INTO `g_sisl_hero`.`user`
+    INSERT INTO user
     (
-    `user_token`,
-    `firstname`,
-    `lastname`,
-    `overeighteen`,
-    `email`,
-    `scenario_list_id`,
-    `scenario_list_position`,
-    `training_progress`,
-    `authorization_progress`)
+      user_token,
+      firstname,
+      lastname,
+      overeighteen,
+      email,
+      scenario_list_id,
+      scenario_list_position,
+      training_progress,
+      authorization_progress)
     VALUES (
-    %s,
-    'Unknown',
-    'Unknown',
-    1,
-    'Unknown',
-    1,
-    1,
-    0,
-    0);
-    """, [token])
+      %s,
+      'Unknown',
+      'Unknown',
+      1,
+      'Unknown',
+      1,
+      1,
+      0,
+      0);
+      """, [token])
     conn.commit()
     cursor.close()
     conn.close()
@@ -208,7 +208,7 @@ def storeResponse(token):
       )
       cursor = conn.cursor()
       cursor.execute("""
-      UPDATE g_sisl_hero.user SET training_progress=1.00 WHERE user_token=%s
+      UPDATE user SET training_progress=1.00 WHERE user_token=%s
       """, [token])
       conn.commit()
       cursor.close()
