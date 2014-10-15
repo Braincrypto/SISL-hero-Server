@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request
 from crossdomain import crossdomain
 import logging
 import ConfigParser
-logging.basicConfig(filename='sisl-server.log',level=logging.DEBUG)
+logging.basicConfig(filename='sisl-server.log', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
 import MySQLdb as db
 
