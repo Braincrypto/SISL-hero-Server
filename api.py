@@ -159,7 +159,7 @@ def createToken(token):
 
     default_scenario_list_id = config.get("EXP", "default_scenario_list_id")
     default_scenario_position = config.get("EXP", "default_scenario_position")
-    default_training_progress = config.get("EXP", "default_scenario_progress")
+    default_training_progress = config.get("EXP", "default_training_progress")
     default_authorization_progress = config.get("EXP", "default_authorization_progress")
 
     cursor = conn.cursor()
