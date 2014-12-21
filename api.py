@@ -156,6 +156,12 @@ def createToken(token):
       passwd = config.get("DB", "passwd"),
       db = config.get("DB", "db")
     )
+
+    default_scenario_list_id = config.get("EXP", "default_scenario_list_id")
+    default_scenario_position = config.get("EXP", "default_scenario_position")
+    default_training_progress = config.get("EXP", "default_scenario_progress")
+    default_authorization_progress = config.get("EXP", "default_authorization_progress")
+
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO user
@@ -175,11 +181,15 @@ def createToken(token):
       'Unknown',
       1,
       'Unknown',
-      1,
-      1,
-      0,
-      0);
-      """, [token])
+      %s,
+      %s,
+      %s,
+      %s);
+      """, [token, 
+          default_scenario_list_id,
+          default_scenario_position,
+          default_training_progress,
+          default_authorization_progress])
     conn.commit()
     cursor.close()
     conn.close()
