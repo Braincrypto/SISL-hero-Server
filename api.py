@@ -1,13 +1,13 @@
 from flask import Flask, jsonify, request
 from crossdomain import crossdomain
-import logging
 import ConfigParser
-logging.basicConfig(filename='sisl-server.log', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
-
+import logging
 import MySQLdb as db
 
 app = Flask(__name__)
 app.debug = False
+
+logging.basicConfig(filename='sisl-server.log', level=logging.DEBUG, format='%(levelname)-6s [%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 config = ConfigParser.ConfigParser()
 config.read("app.conf")
